@@ -1,34 +1,49 @@
 package com.example.deliverysvc.api;
 
-import com.example.deliverysvc.domain.TicketService;
+import com.example.deliverysvc.domain.TicketConverter;
+import com.example.deliverysvc.domain.ticket.TicketService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.net.URI;
 import java.util.List;
 
 @RestController
+@RequestMapping("/api")
 public class TicketController {
 
     private final TicketService service;
+    private final TicketConverter converter;
 
-    public TicketController(TicketService service) {
+    public TicketController(TicketService service, TicketConverter converter) {
         this.service = service;
+        this.converter = converter;
     }
 
     @GetMapping("/v1/tickets")
-    public ResponseEntity<List<TicketDto>> getTickets(){
-        var tickets = service.getAll();
-        return ResponseEntity.ok().body(null);
+    public ResponseEntity<List<TicketResponseDto>> getTickets(){
+        var tickets = service.findAll();
+        return ResponseEntity.ok().body(converter.toTicketsDtoResponse(tickets));
     }
 
-    private TicketDto buildTicket() {
-        TicketDto dto = new TicketDto();
-        dto.setId(1L);
-        dto.setDateTime(LocalDateTime.now());
-        dto.setPrice(BigDecimal.TEN);
-        return dto;
+    @GetMapping("/v1/tickets/{id}")
+    public ResponseEntity<TicketResponseDto> getTicketById(@PathVariable(name = "id", required = true) long id){
+        var ticket = service.getTicketById(id);
+        return ResponseEntity.ok().body(converter.toTicketResponseDto(ticket));
+    }
+
+    @DeleteMapping("/v1/tickets/{id}")
+    public ResponseEntity<Void> deleteTicketById(@PathVariable(name = "id", required = true) long id){
+        service.deleteTicket(id);
+        return ResponseEntity.noContent().build();
+    }
+
+
+    @PostMapping("/v1/tickets")
+    public ResponseEntity<TicketResponseDto> createTicket(@RequestBody TicketRequestDto requestDto){
+        var response = converter
+                .toTicketResponseDto(service.createTicket(converter.toTicket(requestDto)));
+        return ResponseEntity.created(URI.create("/v1/tickets"))
+                .body(response);
     }
 }
